@@ -11,7 +11,8 @@
 using namespace std;
 
 struct position { int col; int row; };
-struct location { int col; int row; int cost; vector<position> path; };
+struct location { int col; int row; float cost; };
+vector<float> answers;
 list<location> olist;
 list<location> clist;
 int matrix[MAP_SIZE][MAP_SIZE];
@@ -48,15 +49,15 @@ void read_file(const char *file_name) {
 }
 
 bool compare_locations(location a, location b) {
-  if(a.cost/(MAP_SIZE-a.row) > b.cost/(MAP_SIZE-b.row)) return true;
   if(a.cost == b.cost && a.row < b.row) return true;
+  if(a.cost/((MAP_SIZE-a.row)) > b.cost/((MAP_SIZE-b.row))) return true;
   return false;
 }
 
 void print_options(location ret) {
   printf("[ ");
   for(list<location>::iterator it = olist.begin(); it != olist.end(); it++) {
-    printf("(%d,%d %d) ", it->col, it->row, it->cost);
+    printf("(%d,%d %f) ", it->col, it->row, it->cost/(MAP_SIZE-it->row));
   }
   printf("]\n");
 }
@@ -70,12 +71,8 @@ bool open_list(vector<location> &new_locations, int pos)
     if(it->row == new_locations[pos].row && 
        it->col == new_locations[pos].col) {
       if (it->cost < new_locations[pos].cost) {
-        printf("Updating cost of (%d,%d) from %d to %d\n", 
-            new_locations[pos].col, new_locations[pos].row, it->cost, new_locations[pos].cost);
         it->cost = new_locations[pos].cost;
       }
-      printf("Skipping (%d,%d) without updating cost\n", 
-          new_locations[pos].col, new_locations[pos].row);
       return true;
     }
   }
@@ -90,8 +87,6 @@ bool closed_list(vector<location> &new_locations, int pos)
   for(list<location>::iterator it = clist.begin(); it != clist.end(); it++) {
     if(it->row == new_locations[pos].row &&
        it->col == new_locations[pos].col) {
-      printf("Skipping (%d,%d) because its in the closed list\n", 
-        new_locations[pos].col, new_locations[pos].row);
       return true;
     }
   }
@@ -106,9 +101,8 @@ location best_option(vector<location> &new_locations)
     } else {
       /* 
        * If it is currently in the open list, update cost
-       * If it is currently in the closed list, skip 
        */
-      if(!open_list(new_locations, i) && !closed_list(new_locations, i)) {
+      if(!open_list(new_locations, i)) { 
         olist.push_back(new_locations[i]);
       }
     }
@@ -116,13 +110,9 @@ location best_option(vector<location> &new_locations)
   olist.sort(compare_locations);
   location ret = olist.front();
   clist.push_back(ret);
-  //print_options(ret);
   if(olist.size())
   olist.pop_front();
-  //print_options(ret);
   return ret;
-
-
 }
 
 static inline position add_path(location current) {
@@ -137,17 +127,14 @@ static inline location right(location current) {
   right.col = current.col;
   right.row = current.row-1;
   right.cost = current.cost + matrix[right.col][right.row];
-  right.path.push_back(add_path(current));
   return right;
 }
 
 static inline location left(location current) {
   location left;
-  position curr_path = { current.col, current.row };
   left.col = current.col-1;
   left.row = current.row-1;
   left.cost = current.cost + matrix[left.col][left.row];
-  left.path.push_back(add_path(current));
   return left;
 }
 
@@ -168,7 +155,9 @@ location a_star(location start) {
       discovered.push_back(left(current));
     }
     current = best_option(discovered);
-    if(current.row == 0) return current;
+    if(current.row == 0) {
+      return current;
+    }
     discovered.clear();
   }
 }
@@ -184,27 +173,16 @@ location start_a_star() {
     init.push_back(added);
   }
   location start = best_option(init); 
-  position curr_path;
-  curr_path.row = start.row;
-  curr_path.col = start.col;
-  start.path.push_back(curr_path);
   return a_star(start);
 
 }
 
 
 int main(int argc, char*argv[]) {
+  printf("Reading file triangle.txt\n");
   read_file("triangle.txt");
-  for(int row=0;row<MAP_SIZE;row++) {
-    for(int col=0;col<MAP_SIZE;col++) {
-      if(matrix[col][row] != 0) printf("%02d ", matrix[col][row]);
-    }
-    printf("\n");
-  }
   location answer = start_a_star();
   printf("\n\nFinal Answer:\n----------------------------------------------------\n");
-  for(int i=0;i<MAP_SIZE-1;i++) {
-    printf("(%d,%d)->", answer.path[i].col, answer.path[i].row);
-  }
-  printf("(%d,%d) \nTotal cost: %d\n", answer.col, answer.row, answer.cost);
+  printf("Total cost: %f\n", answer.cost);
+  printf("\n");
 }
